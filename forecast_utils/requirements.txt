@@ -1,0 +1,5 @@
+pymongo
+pmdarima
+Flask
+gunicorn
+requests
