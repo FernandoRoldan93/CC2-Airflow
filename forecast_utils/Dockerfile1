@@ -4,7 +4,7 @@ ENV PORT 8081
 
 COPY . ./
 
-RUN apt-get update && pip install --upgrade pip && pip install --requirement requirements.txt && ping 172.17.0.2
+RUN apt-get update && pip install --upgrade pip && pip install --requirement requirements.txt
 
 EXPOSE 8081
 EXPOSE 22
