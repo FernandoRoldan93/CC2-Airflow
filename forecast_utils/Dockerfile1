@@ -8,4 +8,5 @@ RUN apt-get update && pip install --upgrade pip && pip install --requirement req
 
 EXPOSE 8081
 
+CMD ping localhost:27017
 CMD gunicorn --workers=4 -b 0.0.0.0:8081 api_arima:app
