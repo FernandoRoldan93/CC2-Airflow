@@ -46,7 +46,7 @@ def insert_data(data):
 
 
 
-#Inicialización del grafo DAG de tareas para el flujo de trabajo
+##Inicialización del grafo DAG de tareas para el flujo de trabajo
 dag = DAG(
     'practica2_tiempo',
     default_args=default_args,
@@ -54,72 +54,87 @@ dag = DAG(
     schedule_interval=timedelta(days=1),
 )
 
+## Esta tarea es la encargada de limpiar el directorio donde se almacenaran todos los archivos necesarios
 PrepararEntorno = BashOperator(
-				task_id='Prepara_entorno',
+				task_id='PrepararEntorno',
 				depends_on_past=False,
 				bash_command='rm -r /tmp/workflow/ ; mkdir /tmp/workflow/',
 				dag=dag
 				)
 
-IniciaDockerDB = BashOperator(
-				task_id='Inicia_DB',
+## En esta tarea se construye el contenedor de la base de datos a partir del archivo docker-compose.yml
+CreaDB = BashOperator(
+				task_id='CreaDB',
 				depends_on_past=False,
-				bash_command='docker rm -f db ; docker run -d --rm -p 27017:27017 --name db mongo:3',
+				bash_command='docker-compose -f /tmp/workflow/repo/docker-compose.yml up --build -d mongodb',
 				dag=dag
 				)
 
-
-
+## En este caso, se descarga la información referente a la humedad
 CapturaDatosHum = BashOperator(
-				task_id='CapturaDatosA',
+				task_id='CapturaDatosHum',
 				depends_on_past=False,
 				bash_command='wget --output-document /tmp/workflow/humidity.csv.zip https://raw.githubusercontent.com/manuparra/MaterialCC2020/master/humidity.csv.zip',
 				dag=dag
 				)
 
+## Al igual que en el caso anterior, se descarga la información referente a la temperatura
 CapturaDatosTemp = BashOperator(
-				task_id='CapturarDatosB',
+				task_id='CapturaDatosTemp',
 				depends_on_past=False,
 				bash_command='wget --output-document /tmp/workflow/temperature.csv.zip https://raw.githubusercontent.com/manuparra/MaterialCC2020/master/temperature.csv.zip',
 				dag=dag
 				)
 
+## En esta tarea se limpia el directorio temporal donde se almacenara todo y se descarga todo el código de github
 CloneGit=BashOperator(
-				task_id='Clone_Git',
+				task_id='CloneGit',
 				depends_on_past=False,
-				bash_command='rm -rf /tmp/workflow/repo/ ; mkdir /tmp/workflow/repo ; git clone https://github.com/FernandoRoldan93/CC2-Airflow.git /tmp/workflow/repo',
+				bash_command='rm -rf /tmp/workflow/repo ; mkdir /tmp/workflow/repo ; git clone https://github.com/FernandoRoldan93/CC2-Airflow.git /tmp/workflow/repo',
                 dag=dag
 				)
 
+## Habiendo descargado antes toda la información referente a la temperatura y la humedad, esta se descomprime ya que viene comprimida en formato .zip
 unzip=BashOperator(
-				task_id='Unzip',
+				task_id='unzip',
 				depends_on_past=False,
 				bash_command='unzip -o /tmp/workflow/temperature.csv.zip -d /tmp/workflow ; unzip -o /tmp/workflow/humidity.csv.zip -d /tmp/workflow',
                 dag=dag
 )
 
+## Se extrae la información de los ficheros de humedad y temperatura para la ciudad de San Francisco y se almacenan en la base de datos
 Extraer_datos = PythonOperator(
-				task_id='Extraer_almacenar',
+				task_id='Extraer_datos',
 				python_callable=extract_data,
 				op_kwargs={},
 				dag=dag
 				)
 
+## Una vez levantados todos los procesos se testea la conexion a la api 1 y 2
+Tests = BashOperator(
+                task_id='Tests',	
+                depends_on_past=False,
+                bash_command='cd /tmp/workflow/repo ; pytest test.py',
+                dag=dag
+	            )
 
-Build_api1 = BashOperator(
-				task_id='Build_api1',
-				depends_on_past=False,
-				bash_command='cd /tmp/workflow/repo/forecast_utils/ ; docker build --rm -f Dockerfile1 -t api_arima .',
-				dag=dag	
-				)
-
+## Utilizando docker-compose se levanta el contenedor de la api 1, la cual ofrece la predicción de arima
 V1 = BashOperator(
-				task_id='Version1',
+				task_id='V1',
 				depends_on_past=False,
-				bash_command='docker run --rm --name api_arima -v /tmp/modelos/:/tmp/modelos/ -p 8001:8081 api_arima',
+				bash_command= 'docker-compose -f /tmp/workflow/repo/docker-compose.yml up -d api_v1',
+				dag=dag	
+				)
+
+## Utilizando docker-compose se levanta el contenedor de la api 2. A diferencia de la api 1 esta hace una llamada a openWeather para obtener la información meteorologica
+V2 = BashOperator(
+				task_id='V2',
+				depends_on_past=False,
+				bash_command='docker-compose -f /tmp/workflow/repo/docker-compose.yml up -d api_v2',
 				dag=dag	
 				)
 
 
-PrepararEntorno >> [IniciaDockerDB ,CapturaDatosHum, CapturaDatosTemp, CloneGit] >> unzip >> Extraer_datos >> Build_api1 >> V1
+PrepararEntorno >> [CapturaDatosHum, CapturaDatosTemp, CloneGit, CreaDB]
+[CapturaDatosHum, CapturaDatosTemp, CloneGit, CreaDB]>> unzip >> [Extraer_datos, V1, V2] >> Tests
 
