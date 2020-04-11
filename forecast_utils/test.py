@@ -9,6 +9,6 @@ def test_api2():
 
 ## De forma similar al test anterior se prueba la conexion a la api 1.
 def test_api1():
-	url = 'http://localhost:8081/arima/24'
+	url = 'http://localhost:8888/arima/24'
 	solicitud = requests.get(url)
 	assert solicitud.status_code == 200
