@@ -1,0 +1,7 @@
+FROM python:3.6.10-slim-stretch
+
+COPY . ./
+
+RUN apt-get update && pip install --upgrade pip && pip install --requirement requirements.txt
+
+CMD gunicorn --workers=4 -b 0.0.0.0:8082 api_v2:app

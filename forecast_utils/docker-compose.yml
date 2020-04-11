@@ -1,0 +1,34 @@
+version: '3.7'
+
+services:
+  mongodb:
+    image: mongo:3
+    ports:
+      - 27017:27017
+    expose:
+      - "27017"
+
+  api_v1:
+    build:
+      context: .
+      dockerfile: Dockerfile1
+    ports:
+      - "8081:8081"
+    links:
+      - mongodb
+    depends_on:
+      - mongodb
+
+  api_v2:
+    environment:
+      - SAN_FRANCISCO_ID=${SAN_FRANCISCO_ID}
+      - WEATHER_KEY=${WEATHER_KEY}
+    build:
+      context: .
+      dockerfile: Dockerfile2
+    ports:
+      - "8082:8082"
+    links:
+      - mongodb
+    depends_on:
+      - mongodb
