@@ -66,7 +66,7 @@ PrepararEntorno = BashOperator(
 CreaDB = BashOperator(
 				task_id='CreaDB',
 				depends_on_past=False,
-				bash_command='docker-compose -f /tmp/workflow/repo/docker-compose.yml up --build -d mongodb',
+				bash_command='docker-compose -f /tmp/workflow/repo/forecast_utils/docker-compose.yml up --build -d mongodb',
 				dag=dag
 				)
 
@@ -114,7 +114,7 @@ Extraer_datos = PythonOperator(
 Tests = BashOperator(
                 task_id='Tests',	
                 depends_on_past=False,
-                bash_command='cd /tmp/workflow/repo ; pytest test.py',
+                bash_command='cd /tmp/workflow/repo/forecast_utils ; pytest test.py',
                 dag=dag
 	            )
 
@@ -122,7 +122,7 @@ Tests = BashOperator(
 V1 = BashOperator(
 				task_id='V1',
 				depends_on_past=False,
-				bash_command= 'docker-compose -f /tmp/workflow/repo/docker-compose.yml up -d api_v1',
+				bash_command= 'docker-compose -f /tmp/workflow/repo/forecast_utils/docker-compose.yml up -d api_v1',
 				dag=dag	
 				)
 
@@ -130,11 +130,10 @@ V1 = BashOperator(
 V2 = BashOperator(
 				task_id='V2',
 				depends_on_past=False,
-				bash_command='docker-compose -f /tmp/workflow/repo/docker-compose.yml up -d api_v2',
+				bash_command='docker-compose -f /tmp/workflow/repo/forecast_utils/docker-compose.yml up -d api_v2',
 				dag=dag	
 				)
 
 
-PrepararEntorno >> [CapturaDatosHum, CapturaDatosTemp, CloneGit, CreaDB]
-[CapturaDatosHum, CapturaDatosTemp, CloneGit, CreaDB]>> unzip >> [Extraer_datos, V1, V2] >> Tests
-
+PrepararEntorno >> [CapturaDatosHum, CapturaDatosTemp, CloneGit]
+[CapturaDatosHum, CapturaDatosTemp, CloneGit]>> CreaDB >> unzip >> [Extraer_datos, V1, V2] >> Tests

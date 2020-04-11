@@ -13,7 +13,7 @@ services:
       context: .
       dockerfile: Dockerfile1
     ports:
-      - "8081:8081"
+      - "8888:8888"
     links:
       - mongodb
     depends_on:
